@@ -1,17 +1,11 @@
 #include "raylib.h"
 #include "stdlib.h"
+#include "stdio.h"
 
-//----------------------------------------------------------------------------------
-// Some Defines
-//----------------------------------------------------------------------------------
 #define SCREENWIDTH 456
 #define SCREENHEIGHT 456
 #define TILES 12
 #define TILE_WIDTH SCREENWIDTH / TILES
-
-//----------------------------------------------------------------------------------
-// Types and Structures Definition
-//----------------------------------------------------------------------------------
 
 typedef enum
 {
@@ -37,16 +31,11 @@ typedef struct
   int y;
   int eaten;
 } fruit;
-//------------------------------------------------------------------------------------
-// Global Variables Declaration
-//------------------------------------------------------------------------------------
 
 int board[TILES][TILES];
 long frame = 0;
 int game_over = 0;
-//------------------------------------------------------------------------------------
-// Module Functions Declaration (local)
-//------------------------------------------------------------------------------------
+
 void draw_grid(void);
 void draw_snake(snake *);
 void move_snake(snake *);
@@ -55,6 +44,8 @@ int wall_collision(snake *);
 void draw_fruit(fruit *);
 int fruit_collision(snake *, fruit *);
 void handle_collision(snake *, fruit *);
+int get_random_x(void);
+int get_random_y(void);
 
 int main()
 {
@@ -64,7 +55,7 @@ int main()
   InitWindow(SCREENWIDTH, SCREENHEIGHT, "snake");
 
   snake player = {TILES / 2 * TILE_WIDTH, TILES / 2 * TILE_WIDTH, 1, TILE_WIDTH, TILE_WIDTH, RIGHT};
-  fruit fruit = {rand() % TILES, rand() % TILES, 0};
+  fruit fruit = {get_random_x(), get_random_y()};
   SetTargetFPS(60); // Set our game to run at 60 frames-per-second
   //--------------------------------------------------------------------------------------
 
@@ -196,19 +187,21 @@ void draw_fruit(fruit *f)
 {
   if (f->eaten)
   {
-    f->x = rand() % TILES;
-    f->y = rand() % TILES;
+    f->x = get_random_x();
+    f->y = get_random_y();
   }
-  DrawRectangle(f->x * TILE_WIDTH, f->y * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH, RED);
+  DrawRectangle(f->x, f->y, TILE_WIDTH, TILE_WIDTH, RED);
 }
 
 int fruit_collision(snake *s, fruit *f)
 {
   if (s->x == f->x && s->y == f->y)
   {
-    s->size += 1;
-    f->eaten = 1;
+    return 1;
+    //s->size += 1;
+    //f->eaten = 1;
   }
+  return 0;
 }
 void handle_collision(snake *s, fruit *f)
 {
@@ -217,4 +210,23 @@ void handle_collision(snake *s, fruit *f)
     game_over = 1;
     return;
   }
+  if (fruit_collision(s, f))
+  {
+    s->size += 1;
+    f->eaten = 1;
+  }
+  else
+  {
+    f->eaten = 0;
+  }
+}
+
+int get_random_x(void)
+{
+  return rand() % TILES * TILE_WIDTH;
+}
+
+int get_random_y(void)
+{
+  return rand() % TILES * TILE_WIDTH;
 }
