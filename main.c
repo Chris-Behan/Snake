@@ -34,9 +34,9 @@ typedef struct
   int eaten;
 } fruit;
 
-int BOARD[TILES][TILES];
 long FRAME = 0;
 int GAME_OVER = 0;
+int SCORE = 0;
 
 void draw_grid(void);
 void draw_snake(snake *);
@@ -51,6 +51,8 @@ void handle_collision(snake *, fruit *);
 int get_random_x(void);
 int get_random_y(void);
 void grow_snake(snake *);
+int self_collision(snake *);
+void deallocate_snake_mem(snake *);
 
 int main()
 {
@@ -60,7 +62,6 @@ int main()
   snake player = {start_pos, start_pos, start_pos, start_pos, TILE_WIDTH, TILE_WIDTH, RIGHT, NULL};
   fruit fruit = {get_random_x(), get_random_y()};
   SetTargetFPS(60); // Set our game to run at 60 FRAMEs-per-second
-  //--------------------------------------------------------------------------------------
 
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
@@ -85,14 +86,13 @@ int main()
       draw_grid();
       FRAME++;
     }
-
+    char score_string[4];
+    itoa(SCORE, score_string, 10);
+    DrawText(score_string, SCREENWIDTH / 2, SCREENHEIGHT / 2, 24, BLACK);
     EndDrawing();
   }
 
-  // De-Initialization
-  //--------------------------------------------------------------------------------------
-  CloseWindow(); // Close window and OpenGL context
-  //--------------------------------------------------------------------------------------
+  CloseWindow();
 
   return 0;
 }
@@ -109,18 +109,18 @@ void draw_grid(void)
 void draw_snake(snake *s)
 {
   //Draws the head of the snake
-  DrawRectangle(s->x, s->y, s->width, s->height, DARKBROWN);
+  DrawRectangle(s->x, s->y, s->width, s->height, DARKGREEN);
   // Draws body of snake
   while (s->tail != NULL)
   {
     s = s->tail;
-    DrawRectangle(s->x, s->y, s->width, s->height, MAGENTA);
+    DrawRectangle(s->x, s->y, s->width, s->height, GREEN);
   }
 }
 
 void move(snake *s)
 {
-  if (FRAME % 5 == 0)
+  if (FRAME % 10 == 0)
   {
     move_head(s);
     move_body(s);
@@ -227,9 +227,10 @@ int fruit_collision(snake *s, fruit *f)
   }
   return 0;
 }
+
 void handle_collision(snake *s, fruit *f)
 {
-  if (wall_collision(s))
+  if (wall_collision(s) || self_collision(s))
   {
     GAME_OVER = 1;
     return;
@@ -272,4 +273,20 @@ void grow_snake(snake *s)
   new_tail->width = s->width;
   new_tail->height = s->height;
   new_tail->tail = NULL;
+  SCORE++;
+}
+
+int self_collision(snake *s)
+{
+  int head_x = s->x;
+  int head_y = s->y;
+  while (s->tail != NULL)
+  {
+    s = s->tail;
+    if (s->x == head_x && s->y == head_y)
+    {
+      return 1;
+    }
+  }
+  return 0;
 }
