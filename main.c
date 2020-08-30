@@ -21,7 +21,6 @@ typedef struct snake
   int y;
   int prev_x;
   int prev_y;
-  int size;
   int width;
   int height;
   direction dir;
@@ -35,13 +34,15 @@ typedef struct
   int eaten;
 } fruit;
 
-int board[TILES][TILES];
-long frame = 0;
-int game_over = 0;
+int BOARD[TILES][TILES];
+long FRAME = 0;
+int GAME_OVER = 0;
 
 void draw_grid(void);
 void draw_snake(snake *);
-void move_snake(snake *);
+void move(snake *);
+void move_head(snake *);
+void move_body(snake *);
 void set_direction(snake *);
 int wall_collision(snake *);
 void draw_fruit(fruit *);
@@ -50,30 +51,28 @@ void handle_collision(snake *, fruit *);
 int get_random_x(void);
 int get_random_y(void);
 void grow_snake(snake *);
+
 int main()
 {
-  // Initialization
-  //--------------------------------------------------------------------------------------
-
   InitWindow(SCREENWIDTH, SCREENHEIGHT, "snake");
 
-  snake player = {TILES / 2 * TILE_WIDTH, TILES / 2 * TILE_WIDTH, 1, 0, 0, TILE_WIDTH, TILE_WIDTH, RIGHT, NULL};
+  int start_pos = TILES / 2 * TILE_WIDTH;
+  snake player = {start_pos, start_pos, start_pos, start_pos, TILE_WIDTH, TILE_WIDTH, RIGHT, NULL};
   fruit fruit = {get_random_x(), get_random_y()};
-  SetTargetFPS(60); // Set our game to run at 60 frames-per-second
+  SetTargetFPS(60); // Set our game to run at 60 FRAMEs-per-second
   //--------------------------------------------------------------------------------------
 
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
     // Update
-    //----------------------------------------------------------------------------------
-
-    //----------------------------------------------------------------------------------
+    set_direction(&player);
+    move(&player);
+    handle_collision(&player, &fruit);
 
     // Draw
-    //----------------------------------------------------------------------------------
     BeginDrawing();
-    if (game_over)
+    if (GAME_OVER)
     {
       ClearBackground(RAYWHITE);
       DrawText("GAME OVER", SCREENWIDTH / 2 - 70, SCREENHEIGHT / 2 - 100, 24, BLACK);
@@ -81,15 +80,13 @@ int main()
     else
     {
       ClearBackground(RAYWHITE);
-      draw_grid();
       draw_snake(&player);
       draw_fruit(&fruit);
-      handle_collision(&player, &fruit);
-      frame++;
+      draw_grid();
+      FRAME++;
     }
 
     EndDrawing();
-    //----------------------------------------------------------------------------------
   }
 
   // De-Initialization
@@ -111,51 +108,63 @@ void draw_grid(void)
 
 void draw_snake(snake *s)
 {
-  set_direction(s);
-  move_snake(s);
-  DrawRectangle(s->x, s->y, s->width, s->height, MAGENTA);
+  //Draws the head of the snake
+  DrawRectangle(s->x, s->y, s->width, s->height, DARKBROWN);
+  // Draws body of snake
   while (s->tail != NULL)
   {
-    int new_x = s->prev_x;
-    int new_y = s->prev_y;
     s = s->tail;
-    s->prev_x = s->x;
-    s->prev_y = s->y;
-    s->x = new_x;
-    s->y = new_y;
     DrawRectangle(s->x, s->y, s->width, s->height, MAGENTA);
   }
 }
 
-void move_snake(snake *s)
+void move(snake *s)
 {
-  if (frame % 10 == 0)
+  if (FRAME % 5 == 0)
   {
-    switch (s->dir)
-    {
-    case UP:
-      s->prev_y = s->y;
-      s->y -= TILE_WIDTH;
-      s->prev_x = s->x;
-      break;
-    case DOWN:
-      s->prev_y = s->y;
-      s->y += TILE_WIDTH;
-      s->prev_x = s->x;
-      break;
-    case LEFT:
-      s->prev_x = s->x;
-      s->x -= TILE_WIDTH;
-      s->prev_y = s->y;
-      break;
-    case RIGHT:
-      s->prev_x = s->x;
-      s->x += TILE_WIDTH;
-      s->prev_y = s->y;
-      break;
-    default:
-      break;
-    }
+    move_head(s);
+    move_body(s);
+  }
+}
+
+void move_head(snake *s)
+{
+  switch (s->dir)
+  {
+  case UP:
+    s->prev_y = s->y;
+    s->prev_x = s->x;
+    s->y -= TILE_WIDTH;
+    break;
+  case DOWN:
+    s->prev_y = s->y;
+    s->prev_x = s->x;
+    s->y += TILE_WIDTH;
+    break;
+  case LEFT:
+    s->prev_x = s->x;
+    s->prev_y = s->y;
+    s->x -= TILE_WIDTH;
+    break;
+  case RIGHT:
+    s->prev_x = s->x;
+    s->prev_y = s->y;
+    s->x += TILE_WIDTH;
+    break;
+  default:
+    break;
+  }
+}
+
+void move_body(snake *s)
+{
+  while (s->tail != NULL)
+  {
+    s->tail->prev_x = s->tail->x;
+    s->tail->prev_y = s->tail->y;
+    s->tail->x = s->prev_x;
+    s->tail->y = s->prev_y;
+    s = s->tail;
   }
 }
 
@@ -215,8 +224,6 @@ int fruit_collision(snake *s, fruit *f)
   if (s->x == f->x && s->y == f->y)
   {
     return 1;
-    //s->size += 1;
-    //f->eaten = 1;
   }
   return 0;
 }
@@ -224,12 +231,11 @@ void handle_collision(snake *s, fruit *f)
 {
   if (wall_collision(s))
   {
-    game_over = 1;
+    GAME_OVER = 1;
     return;
   }
   if (fruit_collision(s, f))
   {
-    s->size += 1;
     f->eaten = 1;
     grow_snake(s);
   }
@@ -257,14 +263,13 @@ void grow_snake(snake *s)
     s = s->tail;
   }
   struct snake *new_tail = (struct snake *)malloc(sizeof(*new_tail));
+  // append a new snake struct to the tail
   s->tail = new_tail;
-  new_tail->x = s->x;
-  new_tail->y = s->y;
-  new_tail->prev_x = s->prev_x;
-  new_tail->prev_y = s->prev_y;
+  new_tail->x = s->prev_x;
+  new_tail->y = s->prev_y;
+  new_tail->prev_x = new_tail->x;
+  new_tail->prev_y = new_tail->y;
   new_tail->width = s->width;
   new_tail->height = s->height;
-  new_tail->size = s->size;
-  new_tail->dir = s->dir;
   new_tail->tail = NULL;
 }
