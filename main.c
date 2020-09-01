@@ -37,7 +37,9 @@ typedef struct
 long FRAME = 0;
 int GAME_OVER = 0;
 int SCORE = 0;
+int start_pos = TILES / 2 * TILE_WIDTH;
 
+void update(snake *, fruit *);
 void draw_grid(void);
 void draw_snake(snake *);
 void move(snake *);
@@ -52,13 +54,13 @@ int get_random_x(void);
 int get_random_y(void);
 void grow_snake(snake *);
 int self_collision(snake *);
-void deallocate_snake_mem(snake *);
+void deallocate_tail_mem(snake *);
 
 int main()
 {
   InitWindow(SCREENWIDTH, SCREENHEIGHT, "snake");
 
-  int start_pos = TILES / 2 * TILE_WIDTH;
+  //  int start_pos = TILES / 2 * TILE_WIDTH;
   snake player = {start_pos, start_pos, start_pos, start_pos, TILE_WIDTH, TILE_WIDTH, RIGHT, NULL};
   fruit fruit = {get_random_x(), get_random_y()};
   SetTargetFPS(60); // Set our game to run at 60 FRAMEs-per-second
@@ -67,9 +69,7 @@ int main()
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
     // Update
-    set_direction(&player);
-    move(&player);
-    handle_collision(&player, &fruit);
+    update(&player, &fruit);
 
     // Draw
     BeginDrawing();
@@ -77,6 +77,7 @@ int main()
     {
       ClearBackground(RAYWHITE);
       DrawText("GAME OVER", SCREENWIDTH / 2 - 70, SCREENHEIGHT / 2 - 100, 24, BLACK);
+      DrawText("Press Enter to Play Again.", SCREENWIDTH / 2 - 150, SCREENHEIGHT / 2 - 60, 24, BLACK);
     }
     else
     {
@@ -95,6 +96,28 @@ int main()
   CloseWindow();
 
   return 0;
+}
+
+void update(snake *s, fruit *f)
+{
+  if (GAME_OVER)
+  {
+    if (IsKeyDown(KEY_ENTER))
+    {
+      s->x = start_pos;
+      s->y = start_pos;
+      s->prev_x = start_pos;
+      s->prev_y = start_pos;
+      s->dir = RIGHT;
+      GAME_OVER = 0;
+    }
+  }
+  else
+  {
+    set_direction(s);
+    move(s);
+    handle_collision(s, f);
+  }
 }
 
 void draw_grid(void)
@@ -232,6 +255,7 @@ void handle_collision(snake *s, fruit *f)
 {
   if (wall_collision(s) || self_collision(s))
   {
+    deallocate_tail_mem(s);
     GAME_OVER = 1;
     return;
   }
@@ -263,7 +287,7 @@ void grow_snake(snake *s)
   {
     s = s->tail;
   }
-  struct snake *new_tail = (struct snake *)malloc(sizeof(*new_tail));
+  struct snake *new_tail = malloc(sizeof(*new_tail));
   // append a new snake struct to the tail
   s->tail = new_tail;
   new_tail->x = s->prev_x;
@@ -289,4 +313,17 @@ int self_collision(snake *s)
     }
   }
   return 0;
+}
+
+void deallocate_tail_mem(snake *s)
+{
+  snake *head = s;
+  snake *tmp;
+  while (s != NULL)
+  {
+    tmp = s;
+    s = s->tail;
+    free(tmp);
+  }
+  head->tail = NULL;
 }
